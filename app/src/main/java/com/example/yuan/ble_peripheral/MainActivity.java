@@ -9,6 +9,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -66,7 +67,7 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Not support", Toast.LENGTH_LONG).show();
             finish();
         }
-        mBluetoothAdapter.setName("Peripheral");
+        mBluetoothAdapter.setName("0429");
 
         advertisingFailureReceiver = new BroadcastReceiver() {
 
@@ -116,10 +117,14 @@ public class MainActivity extends AppCompatActivity {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
         }
+
+        IntentFilter failureFilter = new IntentFilter(AdvertiserService.ADVERTISING_FAILED);
+        registerReceiver(advertisingFailureReceiver, failureFilter);
     }
 
     @Override protected void onPause() {
         super.onPause();
+        unregisterReceiver(advertisingFailureReceiver);
     }
 
     @Override public boolean onCreateOptionsMenu(Menu menu) {
