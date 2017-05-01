@@ -36,17 +36,18 @@ public class ServerCallBack extends BluetoothGattServerCallback {
         // 设置一个GattService以及BluetoothGattCharacteristic
         {
             //immediate alert
-            BluetoothGattService ias = new BluetoothGattService( UUID.fromString("38400000-8cf0-11bd-b23e-10b96e4ef00d"),
+            BluetoothGattService gattService = new BluetoothGattService( UUID.fromString("38400000-8cf0-11bd-b23e-10b96e4ef00d"),
                 BluetoothGattService.SERVICE_TYPE_PRIMARY);
             //alert level char.
-            BluetoothGattCharacteristic alc = new BluetoothGattCharacteristic(
+            BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(
                 UUID.fromString("38400000-8cf0-11bd-b23e-10b96e4efabc"),
                 BluetoothGattCharacteristic.PROPERTY_READ |BluetoothGattCharacteristic.PROPERTY_WRITE | BluetoothGattCharacteristic.PROPERTY_NOTIFY ,
                 BluetoothGattCharacteristic.PERMISSION_READ |BluetoothGattCharacteristic.PERMISSION_WRITE);
-            alc.setValue("");
-            ias.addCharacteristic(alc);
-            if(mGattServer!=null && ias!=null)
-                mGattServer.addService(ias);
+
+            characteristic.setValue("");
+            gattService.addCharacteristic(characteristic);
+            if(mGattServer!=null && gattService!=null)
+                mGattServer.addService(gattService);
         }
     }
 

@@ -92,6 +92,7 @@ public class AdvertiserService extends Service {
             AdvertiseData data = buildAdvertiseData();
             mAdvertiseCallback = new SampleAdvertiseCallback();
 
+
             if (mBluetoothLeAdvertiser != null) {
                 mBluetoothLeAdvertiser.startAdvertising(settings, data,
                     mAdvertiseCallback);
@@ -141,12 +142,26 @@ public class AdvertiserService extends Service {
         AdvertiseData.Builder dataBuilder = new AdvertiseData.Builder();
         dataBuilder.addServiceUuid(Constants.Service_UUID);
         dataBuilder.setIncludeDeviceName(true);
+        //dataBuilder.addServiceData(Constants.Service_UUID, toBytes(new boolean[] {false}));
 
         /* For example - this will cause advertising to fail (exceeds size limit) */
         //String failureData = "asdghkajsghalkxcjhfa;sghtalksjcfhalskfjhasldkjfhdskf";
         //dataBuilder.addServiceData(Constants.Service_UUID, failureData.getBytes());
 
         return dataBuilder.build();
+    }
+
+    public byte[] toBytes(boolean[] input) {
+        byte[] toReturn = new byte[input.length / 8];
+        for (int entry = 0; entry < toReturn.length; entry++) {
+            for (int bit = 0; bit < 8; bit++) {
+                if (input[entry * 8 + bit]) {
+                    toReturn[entry] |= (128 >> bit);
+                }
+            }
+        }
+
+        return toReturn;
     }
 
     private class SampleAdvertiseCallback extends AdvertiseCallback {
