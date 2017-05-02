@@ -4,6 +4,12 @@ import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattServer;
+import android.bluetooth.BluetoothGattServerCallback;
+import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.AdvertiseCallback;
 import android.bluetooth.le.AdvertiseData;
@@ -16,6 +22,7 @@ import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.util.Log;
 import android.widget.Toast;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -34,17 +41,18 @@ public class AdvertiserService extends Service {
     public static final String ADVERTISING_FAILED_EXTRA_CODE = "failureCode";
     public static final int ADVERTISING_TIMED_OUT = 6;
     private BluetoothLeAdvertiser mBluetoothLeAdvertiser;
-    private AdvertiseCallback mAdvertiseCallback;
+    private BluetoothManager mBluetoothManager;
+    private BluetoothAdapter mBluetoothAdapter;
+    private BluetoothGattServer mGattServer;
+    private ServerCallBack callBack;
     private Handler mHandler;
     private Runnable timeoutRunnable;
-
 
     @Nullable @Override public IBinder onBind(Intent intent) {
         return null;
     }
 
-    @Override
-    public void onCreate() {
+    @Override public void onCreate() {
         running = true;
         initialize();
         startAdvertising();
@@ -52,8 +60,7 @@ public class AdvertiserService extends Service {
         super.onCreate();
     }
 
-    @Override
-    public void onDestroy() {
+    @Override public void onDestroy() {
         /**
          * Note that onDestroy is not guaranteed to be called quickly or at all. Services exist at
          * the whim of the system, and onDestroy can be delayed or skipped entirely if memory need
@@ -67,8 +74,12 @@ public class AdvertiserService extends Service {
     }
 
     private void initialize() {
+        mBluetoothManager = (BluetoothManager) getSystemService(BLUETOOTH_SERVICE);
+        mBluetoothAdapter = mBluetoothManager.getAdapter();
+
         if (mBluetoothLeAdvertiser == null) {
-            BluetoothManager mBluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+            BluetoothManager mBluetoothManager =
+                (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
             if (mBluetoothManager != null) {
                 BluetoothAdapter mBluetoothAdapter = mBluetoothManager.getAdapter();
                 if (mBluetoothAdapter != null) {
@@ -77,7 +88,8 @@ public class AdvertiserService extends Service {
                     Toast.makeText(this, R.string.ble_not_supported, Toast.LENGTH_LONG).show();
                 }
             } else {
-                Toast.makeText(this, getString(R.string.ble_not_supported), Toast.LENGTH_LONG).show();
+                Toast.makeText(this, getString(R.string.ble_not_supported), Toast.LENGTH_LONG)
+                    .show();
             }
         }
     }
@@ -87,17 +99,24 @@ public class AdvertiserService extends Service {
 
         Log.d(TAG, "Service: Starting Advertising");
 
-        if (mAdvertiseCallback == null) {
-            AdvertiseSettings settings = buildAdvertiseSettings();
-            AdvertiseData data = buildAdvertiseData();
-            mAdvertiseCallback = new SampleAdvertiseCallback();
+        AdvertiseSettings settings = buildAdvertiseSettings();
+        AdvertiseData data = buildAdvertiseData();
 
+        //callBack = new ServerCallBack();
 
-            if (mBluetoothLeAdvertiser != null) {
-                mBluetoothLeAdvertiser.startAdvertising(settings, data,
-                    mAdvertiseCallback);
-            }
+        mGattServer = mBluetoothManager.openGattServer(this, callback);
+        //try {
+        //    callBack.setupServices(mGattServer);
+        //} catch (InterruptedException e) {
+        //    e.printStackTrace();
+        //}
+        try {
+            setupServices(mGattServer);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
+
+        mBluetoothLeAdvertiser.startAdvertising(settings, data, mAdvertiseCallback);
     }
 
     private void stopAdvertising() {
@@ -108,16 +127,41 @@ public class AdvertiserService extends Service {
         }
     }
 
+    public void setupServices(BluetoothGattServer gattServer) throws InterruptedException {
+        if (gattServer == null) {
+            throw new IllegalArgumentException("gattServer is null");
+        }
+        mGattServer = gattServer;
+        // 设置一个GattService以及BluetoothGattCharacteristic
+        {
+            //immediate alert
+            BluetoothGattService gattService =
+                new BluetoothGattService(UUID.fromString("38400000-8cf0-11bd-b23e-10b96e4ef00d"),
+                    BluetoothGattService.SERVICE_TYPE_PRIMARY);
+            //alert level char.
+            BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(
+                UUID.fromString("38400000-8cf0-11bd-b23e-10b96e4efabc"),
+                BluetoothGattCharacteristic.PROPERTY_READ
+                    | BluetoothGattCharacteristic.PROPERTY_WRITE
+                    | BluetoothGattCharacteristic.PROPERTY_NOTIFY,
+                BluetoothGattCharacteristic.PERMISSION_READ
+                    | BluetoothGattCharacteristic.PERMISSION_WRITE);
+
+            characteristic.setValue("0");
+            gattService.addCharacteristic(characteristic);
+            if (mGattServer != null && gattService != null) mGattServer.addService(gattService);
+        }
+    }
+
     private void goForeground() {
         Intent notificationIntent = new Intent(this, MainActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
-            notificationIntent, 0);
-        Notification n = new Notification.Builder(this)
-            .setContentTitle("Advertising device via Bluetooth")
-            .setContentText("This device is discoverable to others nearby.")
-            .setSmallIcon(R.drawable.peripheral)
-            .setContentIntent(pendingIntent)
-            .build();
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+        Notification n =
+            new Notification.Builder(this).setContentTitle("Advertising device via Bluetooth")
+                .setContentText("This device is discoverable to others nearby.")
+                .setSmallIcon(R.drawable.peripheral)
+                .setContentIntent(pendingIntent)
+                .build();
         startForeground(FOREGROUND_NOTIFICATION_ID, n);
     }
 
@@ -164,38 +208,67 @@ public class AdvertiserService extends Service {
         return toReturn;
     }
 
-    private class SampleAdvertiseCallback extends AdvertiseCallback {
+    private AdvertiseCallback mAdvertiseCallback = new AdvertiseCallback() {
+        @Override public void onStartSuccess(AdvertiseSettings settingsInEffect) {
+            Log.i(TAG, "Peripheral Advertise Started.");
+        }
+
+        @Override public void onStartFailure(int errorCode) {
+            Log.w(TAG, "Peripheral Advertise Failed: " + errorCode);
+        }
+    };
+
+    private BluetoothGattServerCallback callback = new BluetoothGattServerCallback() {
 
         @Override
-        public void onStartFailure(int errorCode) {
-            super.onStartFailure(errorCode);
-
-            Log.d(TAG, "Advertising failed");
-            sendFailureIntent(errorCode);
-            stopSelf();
-
+        public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
+            super.onConnectionStateChange(device, status, newState);
         }
 
         @Override
-        public void onStartSuccess(AdvertiseSettings settingsInEffect) {
-            super.onStartSuccess(settingsInEffect);
-            Log.d(TAG, "Advertising successfully started");
+        public void onCharacteristicReadRequest(BluetoothDevice device, int requestId, int offset,
+            BluetoothGattCharacteristic characteristic) {
+            super.onCharacteristicReadRequest(device, requestId, offset, characteristic);
+            mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset,characteristic.getValue());
+
         }
+
+        @Override public void onCharacteristicWriteRequest(BluetoothDevice device, int requestId,
+            BluetoothGattCharacteristic characteristic, boolean preparedWrite,
+            boolean responseNeeded, int offset, byte[] value) {
+            super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite,
+                responseNeeded, offset, value);
+            mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value);
+            characteristic.setValue(value);
+            Log.d("write", byteArrayToHex(value));
+            Intent intent = new Intent();
+            intent.setAction("WRITE");
+            intent.putExtra("value", Integer.valueOf(byteArrayToHex(value)));
+            sendBroadcast(intent);
+        }
+    };
+
+    private String byteArrayToHex(byte[] a) {
+        StringBuilder sb = new StringBuilder(a.length * 2);
+        for (byte b : a)
+            sb.append(String.format("%02x", b));
+        return sb.toString();
     }
 
-    private void sendFailureIntent(int errorCode){
+    private void sendFailureIntent(int errorCode) {
         Intent failureIntent = new Intent();
         failureIntent.setAction(ADVERTISING_FAILED);
         failureIntent.putExtra(ADVERTISING_FAILED_EXTRA_CODE, errorCode);
         sendBroadcast(failureIntent);
     }
 
-    private void setTimeout(){
+    private void setTimeout() {
         mHandler = new Handler();
         timeoutRunnable = new Runnable() {
-            @Override
-            public void run() {
-                Log.d(TAG, "AdvertiserService has reached timeout of "+TIMEOUT+" milliseconds, stopping advertising.");
+            @Override public void run() {
+                Log.d(TAG, "AdvertiserService has reached timeout of "
+                    + TIMEOUT
+                    + " milliseconds, stopping advertising.");
                 sendFailureIntent(ADVERTISING_TIMED_OUT);
                 stopSelf();
             }

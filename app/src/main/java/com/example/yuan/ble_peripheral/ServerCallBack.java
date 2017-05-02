@@ -16,17 +16,8 @@ import java.util.UUID;
 
 public class ServerCallBack extends BluetoothGattServerCallback {
     private static final String TAG = "BleServer";
-    private byte[] mAlertLevel = new byte[] {(byte) 0x00};
-    private boolean mIsPushStatic = false;
     private BluetoothGattServer mGattServer;
-    private BluetoothGattCharacteristic mDateChar;
-    private BluetoothDevice btClient;
-    private BluetoothGattCharacteristic mHeartRateChar;
-    private BluetoothGattCharacteristic mTemperatureChar;
-    private BluetoothGattCharacteristic mBatteryChar;
-    private BluetoothGattCharacteristic mManufacturerNameChar;
-    private BluetoothGattCharacteristic mModuleNumberChar;
-    private BluetoothGattCharacteristic mSerialNumberChar;
+
 
     public void setupServices(BluetoothGattServer gattServer) throws InterruptedException{
         if (gattServer == null) {
@@ -44,7 +35,7 @@ public class ServerCallBack extends BluetoothGattServerCallback {
                 BluetoothGattCharacteristic.PROPERTY_READ |BluetoothGattCharacteristic.PROPERTY_WRITE | BluetoothGattCharacteristic.PROPERTY_NOTIFY ,
                 BluetoothGattCharacteristic.PERMISSION_READ |BluetoothGattCharacteristic.PERMISSION_WRITE);
 
-            characteristic.setValue("");
+            characteristic.setValue("0");
             gattService.addCharacteristic(characteristic);
             if(mGattServer!=null && gattService!=null)
                 mGattServer.addService(gattService);
@@ -79,14 +70,22 @@ public class ServerCallBack extends BluetoothGattServerCallback {
     public void onCharacteristicWriteRequest(android.bluetooth.BluetoothDevice device,
         int requestId, BluetoothGattCharacteristic characteristic, boolean preparedWrite,
         boolean responseNeeded, int offset, byte[] value) {
-        mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, null);
+
+        mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value);
+        characteristic.setValue(value);
+        Log.d("write", byteArrayToHex(value));
+    }
+
+    private String byteArrayToHex(byte[] a) {
+        StringBuilder sb = new StringBuilder(a.length * 2);
+        for(byte b: a)
+            sb.append(String.format("%02x", b));
+        return sb.toString();
     }
 
     //当有客户端来写Descriptor时回调的接口
     @Override
     public void onDescriptorWriteRequest (BluetoothDevice device, int requestId, BluetoothGattDescriptor descriptor, boolean preparedWrite, boolean responseNeeded, int offset, byte[] value) {
-
-        btClient = device;
         Log.d(TAG, "onDescriptorWriteRequest");
         // now tell the connected device that this was all successfull
         mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value);
