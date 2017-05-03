@@ -72,7 +72,7 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Not support", Toast.LENGTH_LONG).show();
             finish();
         }
-        mBluetoothAdapter.setName("0429");
+        mBluetoothAdapter.setName("Peripheral");
 
         txtView = (TextView) findViewById(R.id.txtView);
 
@@ -167,11 +167,13 @@ public class MainActivity extends AppCompatActivity {
                 this.startService(intent);
                 mbroadcast = true;
                 invalidateOptionsMenu();
+                txtView.setBackgroundColor(Color.RED);
                 return true;
             case R.id.menu_stop:
                 this.stopService(intent);
                 mbroadcast = false;
                 invalidateOptionsMenu();
+                txtView.setBackgroundColor(Color.WHITE);
                 return true;
         }
 

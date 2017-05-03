@@ -42,9 +42,8 @@ public class AdvertiserService extends Service {
     public static final int ADVERTISING_TIMED_OUT = 6;
     private BluetoothLeAdvertiser mBluetoothLeAdvertiser;
     private BluetoothManager mBluetoothManager;
-    private BluetoothAdapter mBluetoothAdapter;
+    //private BluetoothAdapter mBluetoothAdapter;
     private BluetoothGattServer mGattServer;
-    private ServerCallBack callBack;
     private Handler mHandler;
     private Runnable timeoutRunnable;
 
@@ -75,7 +74,7 @@ public class AdvertiserService extends Service {
 
     private void initialize() {
         mBluetoothManager = (BluetoothManager) getSystemService(BLUETOOTH_SERVICE);
-        mBluetoothAdapter = mBluetoothManager.getAdapter();
+        //mBluetoothAdapter = mBluetoothManager.getAdapter();
 
         if (mBluetoothLeAdvertiser == null) {
             BluetoothManager mBluetoothManager =
@@ -102,7 +101,6 @@ public class AdvertiserService extends Service {
         AdvertiseSettings settings = buildAdvertiseSettings();
         AdvertiseData data = buildAdvertiseData();
 
-        //callBack = new ServerCallBack();
 
         mGattServer = mBluetoothManager.openGattServer(this, callback);
         //try {
@@ -195,19 +193,6 @@ public class AdvertiserService extends Service {
         return dataBuilder.build();
     }
 
-    public byte[] toBytes(boolean[] input) {
-        byte[] toReturn = new byte[input.length / 8];
-        for (int entry = 0; entry < toReturn.length; entry++) {
-            for (int bit = 0; bit < 8; bit++) {
-                if (input[entry * 8 + bit]) {
-                    toReturn[entry] |= (128 >> bit);
-                }
-            }
-        }
-
-        return toReturn;
-    }
-
     private AdvertiseCallback mAdvertiseCallback = new AdvertiseCallback() {
         @Override public void onStartSuccess(AdvertiseSettings settingsInEffect) {
             Log.i(TAG, "Peripheral Advertise Started.");
@@ -223,6 +208,7 @@ public class AdvertiserService extends Service {
         @Override
         public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
             super.onConnectionStateChange(device, status, newState);
+            device.createBond();
         }
 
         @Override
