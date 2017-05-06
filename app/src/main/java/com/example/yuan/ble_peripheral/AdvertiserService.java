@@ -103,11 +103,7 @@ public class AdvertiserService extends Service {
 
 
         mGattServer = mBluetoothManager.openGattServer(this, callback);
-        //try {
-        //    callBack.setupServices(mGattServer);
-        //} catch (InterruptedException e) {
-        //    e.printStackTrace();
-        //}
+
         try {
             setupServices(mGattServer);
         } catch (InterruptedException e) {
@@ -147,7 +143,9 @@ public class AdvertiserService extends Service {
 
             characteristic.setValue("0");
             gattService.addCharacteristic(characteristic);
-            if (mGattServer != null && gattService != null) mGattServer.addService(gattService);
+            if (mGattServer != null && gattService != null) {
+                mGattServer.addService(gattService);
+            }
         }
     }
 
@@ -208,13 +206,17 @@ public class AdvertiserService extends Service {
         @Override
         public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
             super.onConnectionStateChange(device, status, newState);
-            device.createBond();
+            if (device.getBondState() == BluetoothDevice.BOND_NONE){
+                device.createBond();
+            }
+
         }
 
         @Override
         public void onCharacteristicReadRequest(BluetoothDevice device, int requestId, int offset,
             BluetoothGattCharacteristic characteristic) {
             super.onCharacteristicReadRequest(device, requestId, offset, characteristic);
+
             mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset,characteristic.getValue());
 
         }
