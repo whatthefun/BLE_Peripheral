@@ -42,7 +42,6 @@ public class AdvertiserService extends Service {
     public static final int ADVERTISING_TIMED_OUT = 6;
     private BluetoothLeAdvertiser mBluetoothLeAdvertiser;
     private BluetoothManager mBluetoothManager;
-    //private BluetoothAdapter mBluetoothAdapter;
     private BluetoothGattServer mGattServer;
     private Handler mHandler;
     private Runnable timeoutRunnable;

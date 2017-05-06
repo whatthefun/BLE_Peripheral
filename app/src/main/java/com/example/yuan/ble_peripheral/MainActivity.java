@@ -30,7 +30,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 11;
     private static final int REQUEST_ENABLE_BT = 12;
     private BluetoothAdapter mBluetoothAdapter;
-    private boolean mbroadcast = false;
+    private boolean mBroadcast = false;
     private BroadcastReceiver advertisingFailureReceiver;
     private TextView txtView;
 
@@ -89,7 +89,7 @@ public class MainActivity extends AppCompatActivity {
                     int errorCode =
                         intent.getIntExtra(AdvertiserService.ADVERTISING_FAILED_EXTRA_CODE, -1);
 
-                    mbroadcast = false;
+                    mBroadcast = false;
 
                     String errorMessage = getString(R.string.start_error_prefix);
                     switch (errorCode) {
@@ -149,7 +149,7 @@ public class MainActivity extends AppCompatActivity {
     @Override public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);
         Log.d(TAG, "onCreateOptionsMenu");
-        if (mbroadcast){
+        if (mBroadcast){
             menu.findItem(R.id.menu_broadcast).setVisible(false);
             menu.findItem(R.id.menu_stop).setVisible(true);
         }else{
@@ -165,13 +165,13 @@ public class MainActivity extends AppCompatActivity {
         switch (item.getItemId()){
             case R.id.menu_broadcast:
                 this.startService(intent);
-                mbroadcast = true;
+                mBroadcast = true;
                 invalidateOptionsMenu();
                 txtView.setBackgroundColor(Color.RED);
                 return true;
             case R.id.menu_stop:
                 this.stopService(intent);
-                mbroadcast = false;
+                mBroadcast = false;
                 invalidateOptionsMenu();
                 txtView.setBackgroundColor(Color.WHITE);
                 return true;
