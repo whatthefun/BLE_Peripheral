@@ -17,11 +17,13 @@ import android.bluetooth.le.AdvertiseSettings;
 import android.bluetooth.le.BluetoothLeAdvertiser;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.util.Log;
 import android.widget.Toast;
+import java.io.UnsupportedEncodingException;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -39,6 +41,9 @@ public class AdvertiserService extends Service {
     public static final String ADVERTISING_FAILED =
         "com.example.android.bluetoothadvertisements.advertising_failed";
     public static final String ADVERTISING_FAILED_EXTRA_CODE = "failureCode";
+    private final String UUID1 = "38400000-8cf0-11bd-b23e-10b96e4efabc";
+    private final String UUID2 = "38400000-8cf0-11bd-b23e-10b96e4efdef";
+    private final String UUID3 = "38400000-8cf0-11bd-b23e-10b96eabcdef";
     public static final int ADVERTISING_TIMED_OUT = 6;
     private BluetoothLeAdvertiser mBluetoothLeAdvertiser;
     private BluetoothManager mBluetoothManager;
@@ -133,15 +138,39 @@ public class AdvertiserService extends Service {
                     BluetoothGattService.SERVICE_TYPE_PRIMARY);
             //alert level char.
             BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(
-                UUID.fromString("38400000-8cf0-11bd-b23e-10b96e4efabc"),
+                UUID.fromString(UUID1),
+                BluetoothGattCharacteristic.PROPERTY_READ
+                    | BluetoothGattCharacteristic.PROPERTY_WRITE
+                    | BluetoothGattCharacteristic.PROPERTY_NOTIFY,
+                BluetoothGattCharacteristic.PERMISSION_READ
+                    | BluetoothGattCharacteristic.PERMISSION_WRITE);
+            characteristic.setValue("0");
+            gattService.addCharacteristic(characteristic);
+
+            BluetoothGattCharacteristic characteristic2 = new BluetoothGattCharacteristic(
+                UUID.fromString(UUID2),
+                BluetoothGattCharacteristic.PROPERTY_READ
+                    | BluetoothGattCharacteristic.PROPERTY_WRITE
+                    | BluetoothGattCharacteristic.PROPERTY_NOTIFY,
+                BluetoothGattCharacteristic.PERMISSION_READ
+                    | BluetoothGattCharacteristic.PERMISSION_WRITE);
+            SharedPreferences sharedPreferences = getSharedPreferences("peripheral", 0);
+            String owner = sharedPreferences.getString("owner", "");
+            characteristic2.setValue(owner);
+            gattService.addCharacteristic(characteristic2);
+
+            BluetoothGattCharacteristic characteristic3 = new BluetoothGattCharacteristic(
+                UUID.fromString(UUID3),
                 BluetoothGattCharacteristic.PROPERTY_READ
                     | BluetoothGattCharacteristic.PROPERTY_WRITE
                     | BluetoothGattCharacteristic.PROPERTY_NOTIFY,
                 BluetoothGattCharacteristic.PERMISSION_READ
                     | BluetoothGattCharacteristic.PERMISSION_WRITE);
 
-            characteristic.setValue("0");
-            gattService.addCharacteristic(characteristic);
+            String key = sharedPreferences.getString("key", "");
+            characteristic2.setValue(key);
+            gattService.addCharacteristic(characteristic3);
+
             if (mGattServer != null && gattService != null) {
                 mGattServer.addService(gattService);
             }
@@ -208,7 +237,6 @@ public class AdvertiserService extends Service {
             if (device.getBondState() == BluetoothDevice.BOND_NONE){
                 device.createBond();
             }
-
         }
 
         @Override
@@ -226,12 +254,39 @@ public class AdvertiserService extends Service {
             super.onCharacteristicWriteRequest(device, requestId, characteristic, preparedWrite,
                 responseNeeded, offset, value);
             mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value);
-            characteristic.setValue(value);
-            Log.d("write", byteArrayToHex(value));
-            Intent intent = new Intent();
-            intent.setAction("WRITE");
-            intent.putExtra("value", Integer.valueOf(byteArrayToHex(value)));
-            sendBroadcast(intent);
+            Log.d(TAG, "onCharacteristicWriteRequest");
+            if (characteristic.getUuid().toString().equals(UUID1)){
+                Log.d(TAG, "UUID1");
+                Intent intent = new Intent();
+                intent.setAction("WRITE");
+                intent.putExtra("value", Integer.valueOf(byteArrayToHex(value)));
+                sendBroadcast(intent);
+            }else if (characteristic.getUuid().toString().equals(UUID2)){
+                Log.d(TAG, "UUID2");
+                try {
+                    String sValue = new String(value, "UTF-8");
+                    Intent intent = new Intent();
+                    intent.setAction("OWNER");
+                    intent.putExtra("value", value.toString());
+                    sendBroadcast(intent);
+                    characteristic.setValue(value);
+                    Log.d(TAG, "value: " + sValue);
+                } catch (UnsupportedEncodingException e) {
+                    e.printStackTrace();
+                }
+            }else if(characteristic.getUuid().toString().equals(UUID3)){
+                try {
+                    String sValue = new String(value, "UTF-8");
+                    Intent intent = new Intent();
+                    intent.setAction("KEY");
+                    intent.putExtra("value", value.toString());
+                    sendBroadcast(intent);
+                    characteristic.setValue(value);
+                    Log.d(TAG, "key_value: " + sValue);
+                } catch (UnsupportedEncodingException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     };
 
