@@ -119,10 +119,10 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(MainActivity.this, errorMessage, Toast.LENGTH_LONG).show();
                 }else if(intent.getAction().equals("WRITE")){
                     Log.d(TAG, "write");
-                    int value = intent.getIntExtra("value", 0);
-                    if (value == 0){
+                    String value = intent.getStringExtra("value");
+                    if (value.equals("0")){
                         txtView.setBackgroundColor(Color.RED);
-                    }else if (value == 1){
+                    }else if (value.equals("1")){
                         txtView.setBackgroundColor(Color.GREEN);
                     }
                 }else if(intent.getAction().equals("OWNER")){
@@ -135,26 +135,28 @@ public class MainActivity extends AppCompatActivity {
                             .putString("owner", value)
                             .apply();
                     }
-                }else if (intent.getAction().equals("KEY")){
-                    Log.d(TAG, "key");
-                    SharedPreferences preferences = getSharedPreferences("peripheral", 0);
+                }else if (intent.getAction().equals("ADD")){
+                    String value = intent.getStringExtra("value");
+                    Log.d(TAG, "ADD: " + value);
+                    //SharedPreferences preferences = getSharedPreferences("peripheral", 0);
+                    //
+                    //if (preferences.getString("key", "").length() < 30){
+                    //    String value = intent.getStringExtra("value");
+                    //    String key = preferences.getString("key", "");
+                    //    preferences.edit()
+                    //        .putString("key", key + value)
+                    //        .apply();
+                    //    key = preferences.getString("key", "");
+                    //    if (key.length() > 15){
+                    //        if (key.charAt(0) != '*' || key.charAt(key.length()) != '*'){
+                    //            preferences.edit()
+                    //                .putString("key", "")
+                    //                .apply();
+                    //        }
+                    //    }
+                    //}
 
-                    if (preferences.getString("key", "").length() < 30){
-                        String value = intent.getStringExtra("value");
-                        String key = preferences.getString("key", "");
-                        preferences.edit()
-                            .putString("key", key + value)
-                            .apply();
-                        key = preferences.getString("key", "");
-                        if (key.length() > 15){
-                            if (key.charAt(0) != '*' || key.charAt(key.length()) != '*'){
-                                preferences.edit()
-                                    .putString("key", "")
-                                    .apply();
-                            }
-                        }
-                    }
-                }
+            }
             }
         };
     }
@@ -168,6 +170,8 @@ public class MainActivity extends AppCompatActivity {
 
         IntentFilter failureFilter = new IntentFilter(ADVERTISING_FAILED);
         failureFilter.addAction("WRITE");
+        failureFilter.addAction("OWNER");
+        failureFilter.addAction("ADD");
         registerReceiver(advertisingFailureReceiver, failureFilter);
     }
 

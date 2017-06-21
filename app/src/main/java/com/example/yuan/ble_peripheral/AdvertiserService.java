@@ -132,7 +132,8 @@ public class AdvertiserService extends Service {
         mGattServer = gattServer;
         // 设置一个GattService以及BluetoothGattCharacteristic
         {
-            //immediate alert
+
+            //controller
             BluetoothGattService gattService =
                 new BluetoothGattService(UUID.fromString("38400000-8cf0-11bd-b23e-10b96e4ef00d"),
                     BluetoothGattService.SERVICE_TYPE_PRIMARY);
@@ -147,6 +148,7 @@ public class AdvertiserService extends Service {
             characteristic.setValue("0");
             gattService.addCharacteristic(characteristic);
 
+            //owner
             BluetoothGattCharacteristic characteristic2 = new BluetoothGattCharacteristic(
                 UUID.fromString(UUID2),
                 BluetoothGattCharacteristic.PROPERTY_READ
@@ -155,10 +157,11 @@ public class AdvertiserService extends Service {
                 BluetoothGattCharacteristic.PERMISSION_READ
                     | BluetoothGattCharacteristic.PERMISSION_WRITE);
             SharedPreferences sharedPreferences = getSharedPreferences("peripheral", 0);
-            String owner = sharedPreferences.getString("owner", "");
-            characteristic2.setValue(owner);
+            String owner = sharedPreferences.getString("owner", "none");
+            characteristic2.setValue("000");
             gattService.addCharacteristic(characteristic2);
 
+            //add
             BluetoothGattCharacteristic characteristic3 = new BluetoothGattCharacteristic(
                 UUID.fromString(UUID3),
                 BluetoothGattCharacteristic.PROPERTY_READ
@@ -167,8 +170,8 @@ public class AdvertiserService extends Service {
                 BluetoothGattCharacteristic.PERMISSION_READ
                     | BluetoothGattCharacteristic.PERMISSION_WRITE);
 
-            String key = sharedPreferences.getString("key", "");
-            characteristic2.setValue(key);
+            //String key = sharedPreferences.getString("key", "");
+            characteristic2.setValue("");
             gattService.addCharacteristic(characteristic3);
 
             if (mGattServer != null && gattService != null) {
@@ -234,9 +237,9 @@ public class AdvertiserService extends Service {
         @Override
         public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
             super.onConnectionStateChange(device, status, newState);
-            if (device.getBondState() == BluetoothDevice.BOND_NONE){
-                device.createBond();
-            }
+            //if (device.getBondState() == BluetoothDevice.BOND_NONE){
+            //    device.createBond();
+            //}
         }
 
         @Override
@@ -256,33 +259,90 @@ public class AdvertiserService extends Service {
             mGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value);
             Log.d(TAG, "onCharacteristicWriteRequest");
             if (characteristic.getUuid().toString().equals(UUID1)){
-                Log.d(TAG, "UUID1");
-                Intent intent = new Intent();
-                intent.setAction("WRITE");
-                intent.putExtra("value", Integer.valueOf(byteArrayToHex(value)));
-                sendBroadcast(intent);
-            }else if (characteristic.getUuid().toString().equals(UUID2)){
-                Log.d(TAG, "UUID2");
                 try {
                     String sValue = new String(value, "UTF-8");
-                    Intent intent = new Intent();
-                    intent.setAction("OWNER");
-                    intent.putExtra("value", value.toString());
-                    sendBroadcast(intent);
-                    characteristic.setValue(value);
-                    Log.d(TAG, "value: " + sValue);
+                    Log.d(TAG, "UUID1: " + sValue);
+                    String username = sValue.split("/")[0];
+                    SharedPreferences preferences = getSharedPreferences("peripheral", 0);
+                    String owner = preferences.getString("owner", "");
+                    String add = preferences.getString("add", "");
+                    Log.d(TAG, "auth: " + owner + ".." + add);
+                    if (username.equals(owner) || username.equals(add.substring(1))){
+
+                        Intent intent = new Intent();
+                        intent.setAction("WRITE");
+                        intent.putExtra("value", sValue.split("/")[1]);
+                        sendBroadcast(intent);
+                    }
                 } catch (UnsupportedEncodingException e) {
                     e.printStackTrace();
+                }
+
+            }else if (characteristic.getUuid().toString().equals(UUID2)){
+                Log.d(TAG, "UUID2");
+                SharedPreferences sharedPreferences = getSharedPreferences("peripheral", 0);
+                if (sharedPreferences.getString("owner", "").equals("")){
+                    try {
+                        String sValue = new String(value, "UTF-8");
+                        Intent intent = new Intent();
+                        intent.setAction("OWNER");
+                        intent.putExtra("value", sValue);
+                        sendBroadcast(intent);
+                        characteristic.setValue(value);
+                        Log.d(TAG, "value: " + sValue);
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
                 }
             }else if(characteristic.getUuid().toString().equals(UUID3)){
                 try {
                     String sValue = new String(value, "UTF-8");
-                    Intent intent = new Intent();
-                    intent.setAction("KEY");
-                    intent.putExtra("value", value.toString());
-                    sendBroadcast(intent);
-                    characteristic.setValue(value);
-                    Log.d(TAG, "key_value: " + sValue);
+                    SharedPreferences preferences = getSharedPreferences("peripheral", 0);
+                    String add = preferences.getString("add", "");
+                    String owner = preferences.getString("owner", "");
+                    Log.d(TAG, "---------------- " + sValue);
+                    if (add=="" || add.charAt(0)!='/') {
+                        Log.d(TAG, "onCharacteristicWriteRequest: 111");
+                        if (add.length() < 25) {
+                            Log.d(TAG, "onCharacteristicWriteRequest: 222");
+                            Log.d(TAG, "add, sValue:" + add + ", " +sValue);
+                            preferences.edit().putString("add", add + sValue).apply();
+                            add = preferences.getString("add", "");
+
+                            if (owner!="" && add.split("/")[0].equals(owner) && add.length()>25){
+                                preferences.edit().putString("add", "/" + add.split("/")[1]).apply();
+                                Log.d(TAG, preferences.getString("add", "QQ") + "333");
+                            }
+                        } else {
+                            Log.d(TAG, "444");
+                            preferences.edit().putString("add", "").apply();
+                        }
+                    }
+                    //if (add != "" && add.charAt(0) != '/') {
+                    //    Log.d(TAG, "add!=" + add);
+                    //    preferences.edit().putString("add", add + sValue).apply();
+                    //
+                    //    add = preferences.getString("add", "");
+                    //    String owner = preferences.getString("owner", "");
+                    //
+                    //    if (add.length() > 20 && (!owner.equals("")) && owner.equals(
+                    //        add.split("/")[0])) {
+                    //        Log.d(TAG, "add>20: " + add);
+                    //        preferences.edit().putString("add", "/" + add.split("/")[1]).apply();
+                    //    }else {
+                    //        preferences.edit().putString("add", "").apply();
+                    //    }
+                    //}
+                    //else {
+                    //    Log.d(TAG, "add: " + add);
+                    //    preferences.edit().putString("add", sValue).apply();
+                    //}
+                    //Intent intent = new Intent();
+                    //intent.setAction("ADD");
+                    //intent.putExtra("value", sValue);
+                    //sendBroadcast(intent);
+                    ////characteristic.setValue(value);
+                    Log.d(TAG, "ADD: " + sValue);
                 } catch (UnsupportedEncodingException e) {
                     e.printStackTrace();
                 }
